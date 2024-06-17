@@ -294,3 +294,68 @@ def create_or_update_index():
     print("Index updated")
 
 create_or_update_index()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ###6) Query vector search endpoint 
+# MAGIC
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### 6.1 Query self managed index
+
+# COMMAND ----------
+
+from databricks.vector_search.client import VectorSearchClient
+vsc = VectorSearchClient()
+
+#Note that we're querying a self managed embedding, so we need to convert to embeddings using our model endpoint
+vs_index_fullname = f"{catalog}.{schema}.{table_name}_pt_self_managed_embeddings"
+query = "Ukraine refugees"
+
+#Get the embeddings that are most similar to the query
+def search_similar_content(query):
+  results = vsc.get_index(vector_search_endpoint_name, vs_index_fullname).similarity_search(
+    #Compute the embeddings using our model endpoint through query_vector
+    query_vector=compute_embeddings(query),
+    columns=["id", "title", "description", "link"],
+    num_results=5)
+
+  #return [i[1] for i in results['result']['data_array']]
+  return results
+
+results_array = search_similar_content(query)
+print(results_array)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### 6.2 Query Databricks managed index
+
+# COMMAND ----------
+
+from databricks.vector_search.client import VectorSearchClient
+vsc = VectorSearchClient()
+
+#Note that we're querying a DB managed embedding, where databricks will manage the creation of embeddings from the question
+vs_index_fullname = f"{catalog}.{schema}.{table_name}_db_managed_embeddings"
+query = "Ukraine refugees"
+
+#Get the embeddings that are most similar to the query
+def search_similar_content(query):
+  results = vsc.get_index(vector_search_endpoint_name, vs_index_fullname).similarity_search(
+    query_text=query,
+    columns=["id", "title", "description", "link"],
+    num_results=5)
+  
+  return results
+  #return [i[1] for i in results['result']['data_array']]
+
+results_array = search_similar_content(query)
+print(results_array)
+
+# COMMAND ----------
+
+
