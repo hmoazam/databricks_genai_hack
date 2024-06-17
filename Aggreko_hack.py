@@ -37,7 +37,8 @@ spark.sql(f"""USE DATABASE {schema}""")
 
 # COMMAND ----------
 
-# This is a reference cell that you do not need to use. You have already created tables using the UI. This is an example of how to do it through code.
+# This is a reference cell that you do not need to use. You have already created tables using the UI. This is an example of how to do it through code:
+
 # spark.read.csv('/Volumes/hackathon/default/engineering-notes/', header=True, inferSchema=True).write.saveAsTable('engineering_notes')
 
 # COMMAND ----------
