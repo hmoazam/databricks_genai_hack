@@ -372,4 +372,102 @@ print(response['choices'][0]['message']['content'])
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ###8) Build langchain retriever
+# MAGIC Use langchain wrapper to stitch together the steps required:
+# MAGIC * Create embeddings for question
+# MAGIC * Call the vector search index & find similar indexes
+# MAGIC * Calling a chat model and pass in the response into a prompt template
+# MAGIC
+# MAGIC Databricks Langchain wrapper makes it easy to do in one step, handling all the underlying logic and API call for you.
+
+# COMMAND ----------
+
+from langchain.vectorstores import DatabricksVectorSearch
+from langchain.embeddings import DatabricksEmbeddings
+from databricks.vector_search.client import VectorSearchClient
+from langchain.llms import Databricks
+
+vs_index_fullname = f"{catalog}.{schema}.{table_name}_pt_self_managed_embeddings"
+embedding_model = DatabricksEmbeddings(target_uri = "databricks",endpoint = embedding_endpoint_name)
+
+#Wrap the retrieval of vectors in a retriever
+def get_retriever(persist_dir: str = None):
+  os.environ["DATABRICKS_HOST"] = host
+  vsc = VectorSearchClient()
+  vsc_index = vsc.get_index(
+    endpoint_name = vector_search_endpoint_name, 
+    index_name = vs_index_fullname
+  )
+
+  vectorstore = DatabricksVectorSearch(
+    vsc_index, text_column = "description", embedding = embedding_model
+  )
+  return vectorstore.as_retriever()
+
+vectorstore = get_retriever()
+
+# COMMAND ----------
+
+#This is to format the input to the model
+def reformat_Func(prompt, **kwargs):
+  # Note Single quotes is important!
+  return { 
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": 128
+    }
+
+chat_model = Databricks(allow_dangerous_deserialization=True,
+                    transform_input_fn=reformat_Func,
+                    endpoint_name=chat_endpoint_name)
+
+chat_model._client.external_or_foundation = True
+
+# COMMAND ----------
+
+from langchain_community.chat_models import ChatDatabricks
+
+chat_model = ChatDatabricks(target_uri = "databricks",
+                              endpoint = chat_endpoint_name)
+
+# COMMAND ----------
+
+from langchain.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
+
+#Create the prompt template and include the context and question
+Template = """You are a question answering assistant. If the questions are not related to the data in the context, respond with 'I do not have enough information to answer'. Do not try to make up an answer. Answer the {question} in 100 words or less using the context below:
+Context = {context}
+Question = {question}"""
+
+
+prompt = PromptTemplate(template = Template, input_variables = ['context','question'])
+
+# COMMAND ----------
+
+#Assemble the complete RAG chain
+chain = RetrievalQA.from_chain_type(
+  llm = chat_model,
+  chain_type = "stuff",
+  retriever = get_retriever(),
+  chain_type_kwargs = {"prompt":prompt}
+
+)
+
+# COMMAND ----------
+
+query = "Ukraine war"
+
+question = {"query":query}
+response = chain.invoke(question)
+
+print(response['result'])
+
+# COMMAND ----------
+
 
