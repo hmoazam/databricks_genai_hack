@@ -358,4 +358,18 @@ print(results_array)
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### 7) Prompt engineering
+
+# COMMAND ----------
+
+import mlflow.deployments
+deploy_client = mlflow.deployments.get_deploy_client("databricks")
+
+response = deploy_client.predict(endpoint=chat_endpoint_name
+                                 , inputs={"messages": [{"role":"user","content":f"Answer the question: {query} in 100 words or less using only the information available in: {results_array}. Include the link in your answer"}]})
+print(response['choices'][0]['message']['content'])
+
+# COMMAND ----------
+
 
