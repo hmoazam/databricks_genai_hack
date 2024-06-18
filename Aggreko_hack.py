@@ -470,4 +470,120 @@ print(response['result'])
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### 9) Save your custom app as a UC model
+
+# COMMAND ----------
+
+import mlflow, langchain
+mlflow.set_registry_uri("databricks-uc")
+from mlflow.models import infer_signature
+
+model_name = "bbc_news_rag"
+model_name_3_level = f"{catalog}.{schema}.{model_name}"
+
+with mlflow.start_run(run_name = "bbc_news_rag") as run:
+  logged_model = mlflow.langchain.log_model(
+    chain,
+    loader_fn = get_retriever,
+    artifact_path="chain",
+    input_example = query,
+    signature = infer_signature(query,response),
+    registered_model_name = model_name,
+    pip_requirements=[
+          "langchain==0.2.0",
+          "databricks-vectorsearch",
+          "mlflow==2.13.0",
+          "langchain_community"
+    ]
+  )
+
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 10) Create model serving endpoint
+
+# COMMAND ----------
+
+from mlflow import MlflowClient
+client = MlflowClient()
+#Check for the latest version on UC to deploy
+def get_latest_model_version(model_name_3_level):
+    mlflow_client = MlflowClient()
+    latest_version = 1
+    for mv in mlflow_client.search_model_versions(f"name='{model_name_3_level}'"):
+        version_int = int(mv.version)
+        if version_int > latest_version:
+            latest_version = version_int
+    return latest_version
+
+print(get_latest_model_version(model_name_3_level))
+
+# COMMAND ----------
+
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.serving import EndpointCoreConfigInput, ServedEntityInput
+from datetime import timedelta
+from mlflow import MlflowClient
+
+client = MlflowClient()
+
+w = WorkspaceClient()
+serving_endpoint_name = 'bbc_news_rag'
+
+endpoint_config = EndpointCoreConfigInput(
+    served_entities =[
+      ServedEntityInput(
+      entity_name=f"{catalog}.{schema}.{model_name}",
+      entity_version = get_latest_model_version(model_name_3_level),
+      workload_size = "Small",
+      scale_to_zero_enabled = True,
+      workload_type = "CPU",
+      environment_vars = {"DATABRICKS_TOKEN":"{{secrets/hackathon/token}}"}
+      )
+    ]
+  )
+
+existing_endpoint = next(
+    (e for e in w.serving_endpoints.list() if e.name == serving_endpoint_name), None
+)
+
+if existing_endpoint == None:
+  w.serving_endpoints.create_and_wait(
+    name = serving_endpoint_name,
+    config = endpoint_config,
+    timeout= timedelta(hours = 0, minutes = 40)
+  )
+  print("endpoint is being created")
+else:
+  w.serving_endpoints.update_config_and_wait(
+    served_entities=endpoint_config.served_entities, 
+    name=serving_endpoint_name,
+    timeout= timedelta(hours = 0, minutes = 40)
+    )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 11) Query endpoint
+
+# COMMAND ----------
+
+import mlflow.deployments
+deploy_client = mlflow.deployments.get_deploy_client("databricks")
+
+question = "What are the typical resolution to pump failures"
+response = deploy_client.predict(endpoint="engineering_notes_small", inputs={
+  "dataframe_split": {
+    "data": [
+      [
+        question
+      ]
+    ]
+  }
+})
+
+# COMMAND ----------
+
 
