@@ -20,7 +20,7 @@ dbutils.library.restartPython()
 
 import os
 host = "https://" + spark.conf.get("spark.databricks.workspaceUrl")
-os.environ['DATABRICKS_TOKEN'] = dbutils.secrets.get("hackathon","token")
+os.environ['DATABRICKS_TOKEN'] = dbutils.secrets.get("hackaton","hack_key")
 
 # COMMAND ----------
 
