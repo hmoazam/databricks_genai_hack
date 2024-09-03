@@ -25,10 +25,10 @@ os.environ['DATABRICKS_TOKEN'] = dbutils.secrets.get("hackathon","token")
 # COMMAND ----------
 
 #Fill this out with the catalog where the data is stored and where all objects will be created (eg: tables, models etc)
-catalog = "hanna_aggreko" #"hackathon" 
+catalog = "hackaton" #"hackathon" 
 
 #Fill this out with the schema where the data is stored and where all objects will be created (eg: tables, models etc)
-schema = "hack_data" #"default"
+schema = "hackdata" #"default"
 
 # COMMAND ----------
 
@@ -48,9 +48,9 @@ raw_data = spark.read.table("bbc_news") #<your table name>
 # COMMAND ----------
 
 #Replace the names below with the names of the endpoints for embedding model & chat model that would have been pre provisioned within the workspace. Replace the name for vector search endpoint & the name of the table to write to.
-embedding_endpoint_name = "databricks-bge-large-en" #"bge_m3"
-chat_endpoint_name = "databricks-meta-llama-3-70b-instruct" #"meta_llama_3_8b_instruct"
-vector_search_endpoint_name = "hackathon_vs"
+embedding_endpoint_name = "hackaton-embedding" #"bge_m3"
+chat_endpoint_name = "hackaton-llama-completion" #"meta_llama_3_8b_instruct"
+vector_search_endpoint_name = "hackaton-vectorsearch"
 table_name = "bbc_news_embeddings" #"engineering_notes_embeddings"
 
 # COMMAND ----------
